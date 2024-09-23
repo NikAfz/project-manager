@@ -1,35 +1,96 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import "./App.css";
+import Header from "./camponents/Header";
+import ToDo from "./camponents/ToDo";
+import AddToDo from "./camponents/AddToDo";
+import data from "./data";
+import { useEffect, useState } from "react";
+import Blobs from "./camponents/blobs";
+
+import { DndContext, closestCenter, closestCorners } from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  horizontalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [dataState, setDataState] = useState(data);
+
+  const [render, setRender] = useState(false);
+
+  const [notDragging, setNotDragging] = useState(true);
+
+  useEffect(() => {
+    localStorage.setItem("todoData", JSON.stringify(dataState));
+  }, [render]);
+
+  function RenderToDo(props) {
+    const { attributes, listeners, setNodeRef, transform, transition } =
+      useSortable({ id: props.id, disabled: notDragging });
+
+    // style
+    const style = {
+      transition,
+      transform: CSS.Transform.toString(transform),
+    };
+
+    return (
+      <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+        <ToDo
+          name={props.name}
+          ToDo={props.todo}
+          fullObject={props.object}
+          rander={setRender}
+          setNotDragging={setNotDragging}
+        />
+      </div>
+    );
+  }
+
+  function onDragEnd(e) {
+    const { active, over } = e;
+    if (active.id === over.id) {
+      return;
+    }
+    setDataState((dataState) => {
+      const oldIndex = dataState.findIndex((i) => i.id === active.id);
+      const newIndex = dataState.findIndex((i) => i.id === over.id);
+      setRender((p) => !p);
+      return arrayMove(dataState, oldIndex, newIndex);
+    });
+  }
 
   return (
     <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+      <Blobs />
+
+      <Header />
+      <div className="todo--container">
+        <DndContext collisionDetection={closestCorners} onDragEnd={onDragEnd}>
+          <SortableContext
+            items={dataState}
+            strategy={horizontalListSortingStrategy}
+          >
+            {dataState.map((item) => {
+              return (
+                <RenderToDo
+                  key={item.id}
+                  id={item.id}
+                  object={item}
+                  name={item.toDoName}
+                  todo={item.innerToDo}
+                />
+              );
+            })}
+          </SortableContext>
+        </DndContext>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+
+      <AddToDo data={dataState} rander={setRender} />
     </>
-  )
+  );
 }
 
-export default App
+export default App;
